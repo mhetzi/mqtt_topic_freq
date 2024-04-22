@@ -34,7 +34,7 @@ var resetEveryMinutes time.Duration = 60
 var printEverySeconds time.Duration = 1
 var username string = ""
 var password string = ""
-var mqttUrl string = "mqtt://xeon.lan:1883"
+var mqttUrl string = "mqtt://localhost:1883"
 
 func checkCmdArgs() bool {
 	cmdArgs := os.Args[1:]
