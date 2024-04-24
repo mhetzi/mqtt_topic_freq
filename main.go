@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/signal"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -30,94 +29,28 @@ var store_to_zn = make(map[string]uint32, 100)
 var store_from_zn_total = make(map[string]uint32, 100)
 var store_to_zn_total = make(map[string]uint32, 100)
 
-var resetEveryMinutes time.Duration = 60
-var printEverySeconds time.Duration = 1
-var username string = ""
-var password string = ""
-var mqttUrl string = "mqtt://localhost:1883"
-
-func checkCmdArgs() bool {
-	cmdArgs := os.Args[1:]
-	length := len(cmdArgs)
-
-	for cmdOffset := 0; cmdOffset < length; cmdOffset++ {
-		cmdArg := cmdArgs[cmdOffset]
-
-		switch cmdArg {
-
-		case "--help":
-			{
-				fmt.Println(" ==== HELP =====")
-				fmt.Println("--reset Minutes to Reset all counts")
-				fmt.Println("--print Seconds between Stats Printout")
-				fmt.Println("--url MQTT Host URL (no username password)")
-				fmt.Println("--user MQTT User")
-				fmt.Println("--passwd MQTT Password")
-				fmt.Println("--topic Topic")
-				fmt.Println("--topic2 Topic")
-				fmt.Println(" ==== END =====")
-				return false
-			}
-		case "--reset":
-			{
-				reset, err := strconv.Atoi(cmdArgs[cmdOffset+1])
-				if err != nil {
-					fmt.Printf("Can't convert %s to an int!", cmdArgs[cmdOffset+1])
-					cmdOffset++
-					continue
-				}
-				resetEveryMinutes = time.Duration(reset)
-				cmdOffset++
-			}
-		case "--print":
-			{
-				reset, err := strconv.Atoi(cmdArgs[cmdOffset+1])
-				if err != nil {
-					fmt.Printf("Can't convert %s to an int!", cmdArgs[cmdOffset+1])
-					cmdOffset++
-					continue
-				}
-				printEverySeconds = time.Duration(reset)
-				cmdOffset++
-			}
-		case "--url":
-			mqttUrl = cmdArgs[cmdOffset+1]
-			cmdOffset++
-		case "--user":
-			username = cmdArgs[cmdOffset+1]
-			cmdOffset++
-		case "--passwd":
-			password = cmdArgs[cmdOffset+1]
-			cmdOffset++
-		case "--topic":
-			topic = cmdArgs[cmdOffset+1]
-			cmdOffset++
-		case "--topic2":
-			topic2 = cmdArgs[cmdOffset+1]
-			cmdOffset++
-		}
-
-	}
-	return true
-}
+var chartTo *ChartDataHolder = nil
+var chartFrom *ChartDataHolder = nil
 
 func main() {
-	if !checkCmdArgs() {
-		os.Exit(1)
+	args, err := checkCmdArgs()
+	if err != nil {
+		return
 	}
+
 	// App will run until cancelled by user (e.g. ctrl-c)
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	// We will connect to the Eclipse test server (note that you may see messages that other users publish)
-	u, err := url.Parse(mqttUrl)
+	u, err := url.Parse(args.mqttUrl)
 	if err != nil {
 		panic(err)
 	}
 
 	cliCfg := autopaho.ClientConfig{
-		ConnectUsername: username,
-		ConnectPassword: []byte(password),
+		ConnectUsername: args.username,
+		ConnectPassword: []byte(args.password),
 		ServerUrls:      []*url.URL{u},
 		KeepAlive:       20, // Keepalive message should be sent every 20 seconds
 		// CleanStartOnInitialConnection defaults to false. Setting this to true will clear the session on the first connection.
@@ -203,8 +136,22 @@ func main() {
 		panic(err)
 	}
 
-	go printStats()
-	go resetStats()
+	if args.graph {
+		chartTo = new(ChartDataHolder)
+		chartTo.timedData = make(map[time.Time]ChartTimeData, 10)
+		chartTo.topics.array = make(map[string]bool, 10)
+
+		chartFrom = new(ChartDataHolder)
+		chartFrom.timedData = make(map[time.Time]ChartTimeData, 10)
+		chartFrom.topics.array = make(map[string]bool, 10)
+	}
+
+	if args.repr {
+		fmt.Println("repr found skipping go routine printStats")
+	} else {
+		go printStats(args.printEverySeconds)
+	}
+	go resetStats(args.resetEveryMinutes, args.repr)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1)
@@ -225,16 +172,38 @@ func main() {
 	fmt.Println("Writing alltime stats...")
 	writeToFile_From(true)
 	writeToFile_To(true)
+
+	fmt.Println("Writing charts...")
+	doPushChart()
+	writeGraph()
 }
 
-func resetStats() {
-	for range time.Tick(time.Minute * resetEveryMinutes) {
+func resetStats(everyMinutes int, repr bool) {
+	for range time.Tick(time.Minute * time.Duration(everyMinutes)) {
+		doPushChart()
 		fmt.Println("")
 		fmt.Println("")
+		if repr {
+			fmt.Println("resetStats repr")
+			printToZnStats()
+			printFromZnStats()
+		}
 		doResetStats()
 		fmt.Println("")
 		fmt.Println("")
 	}
+}
+
+func doPushChart() {
+	if chartFrom == nil || chartTo == nil {
+		return
+	}
+
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	chartTo.ChartPushData(store_to_zn)
+	chartFrom.ChartPushData(store_from_zn)
 }
 
 func doResetStats() {
@@ -244,8 +213,8 @@ func doResetStats() {
 	store_to_zn = make(map[string]uint32, 100)
 }
 
-func printStats() {
-	for range time.Tick(time.Second * printEverySeconds) {
+func printStats(every_Seconds int) {
+	for range time.Tick(time.Second * time.Duration(every_Seconds)) {
 		fmt.Println("")
 		fmt.Println("")
 		printToZnStats()
@@ -298,21 +267,12 @@ func printToZnStats() {
 }
 
 func writeToFile_From(total bool) {
-	formatted := time.Now().Format(time.RFC3339)
-
-	cwd, err_cwd := os.Getwd()
-	if err_cwd != nil {
-		cwd = "."
-		fmt.Println(err_cwd)
-	}
-
-	var filePath = ""
+	tot := ""
 	if total {
-		filePath = fmt.Sprintf("%s/from_total_%s.json", cwd, formatted)
-	} else {
-		filePath = fmt.Sprintf("%s/from_%s.json", cwd, formatted)
+		tot = "total"
 	}
-	f, err := os.Create(filePath)
+
+	f, err := getFileWithTimestamp("from", tot, "json")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -333,21 +293,13 @@ func writeToFile_From(total bool) {
 }
 
 func writeToFile_To(total bool) {
-	formatted := time.Now().Format(time.RFC3339)
-
-	cwd, err_cwd := os.Getwd()
-	if err_cwd != nil {
-		cwd = "."
-		fmt.Println(err_cwd)
-	}
-
-	var filePath = ""
+	tot := ""
 	if total {
-		filePath = fmt.Sprintf("%s/to_total_%s.json", cwd, formatted)
-	} else {
-		filePath = fmt.Sprintf("%s/to_%s.json", cwd, formatted)
+		tot = "total"
 	}
-	f, err := os.Create(filePath)
+
+	f, err := getFileWithTimestamp("to", tot, "json")
+
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -364,5 +316,31 @@ func writeToFile_To(total bool) {
 	_, err = f.Write(b)
 	if err != nil {
 		fmt.Println(err)
+	}
+}
+
+func writeGraph() {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if chartFrom != nil {
+		ff, err := getFileWithTimestamp("graph", "from", "html")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer ff.Close()
+
+		chartFrom.GenChart(ff, "From Zigbee Network", time.Now().Format(time.RFC3339))
+	}
+	if chartTo != nil {
+		ft, err := getFileWithTimestamp("graph", "to", "html")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer ft.Close()
+
+		chartTo.GenChart(ft, "To Zigbee Network", time.Now().Format(time.RFC3339))
 	}
 }
