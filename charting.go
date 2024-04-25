@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/go-echarts/go-echarts/v2/charts"
+	"github.com/go-echarts/go-echarts/v2/components"
 	"github.com/go-echarts/go-echarts/v2/opts"
-	"github.com/go-echarts/go-echarts/v2/types"
 )
 
 type ChartTimeData struct {
@@ -38,6 +38,11 @@ func (d *ChartDataHolder) toLineItems(topic string, times *[]time.Time) []opts.L
 }
 
 func (d *ChartDataHolder) GenChart(writer io.Writer, title string, subtitle string) error {
+	page := components.NewPage()
+	page.Layout = components.PageFlexLayout
+	page.Width = "100%"
+	page.Height = "100%"
+
 	times, _ := MapKeys(d.timedData)
 	topics, _ := d.topics.getStrings()
 
@@ -55,11 +60,10 @@ func (d *ChartDataHolder) GenChart(writer io.Writer, title string, subtitle stri
 	toolbox.Feature.Restore.Show = true
 
 	line.SetGlobalOptions(
-		charts.WithInitializationOpts(opts.Initialization{Theme: types.ThemeWonderland}),
+		charts.WithInitializationOpts(opts.Initialization{Theme: "dark", PageTitle: "mqtt_topics", Width: "100%", Height: "100vh"}),
 		charts.WithTitleOpts(opts.Title{
 			Title:    title,
 			Subtitle: subtitle,
-			Bottom:   "80",
 		}),
 		charts.WithLegendOpts(opts.Legend{Type: "scroll"}),
 		charts.WithTooltipOpts(opts.Tooltip{Show: true, Trigger: "axis", TriggerOn: "mousemove"}),
@@ -77,5 +81,7 @@ func (d *ChartDataHolder) GenChart(writer io.Writer, title string, subtitle stri
 	}
 
 	line.SetSeriesOptions(charts.WithLineChartOpts(opts.LineChart{Smooth: true}))
+	//page.AddCharts(line)
+	//return page.Render(writer)
 	return line.Render(writer)
 }

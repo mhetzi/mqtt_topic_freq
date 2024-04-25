@@ -23,7 +23,7 @@ type ParsedArgs struct {
 
 	topic  string
 	topic2 string
-	graph  bool
+	graph  int
 	repr   bool
 }
 
@@ -57,7 +57,8 @@ func checkCmdArgs() (ParsedArgs, error) {
 				fmt.Println("--topic Topic")
 				fmt.Println("--topic2 Topic")
 				fmt.Println("--repr Do print and reset immidiatly")
-				fmt.Println("--graph Generate graphs,  datapoints are collected on reset")
+				fmt.Println("--graph Generate graphs,  datapoints are collected on reset or an SIGUSR1")
+				fmt.Println("--grm Render graph every x Minutes")
 				fmt.Println(" ==== END =====")
 				return retArgs, &ArgsToExit{msg: "help"}
 			}
@@ -101,7 +102,18 @@ func checkCmdArgs() (ParsedArgs, error) {
 		case "--repr":
 			retArgs.repr = true
 		case "--graph":
-			retArgs.graph = true
+			if retArgs.graph == 0 {
+				retArgs.graph = -1
+			}
+		case "--grm":
+			i, e := strconv.Atoi(cmdArgs[cmdOffset+1])
+			if e == nil {
+				retArgs.graph = i
+				cmdOffset++
+			} else {
+				fmt.Println("--grm argument is invalid")
+				fmt.Println(e)
+			}
 		}
 
 	}

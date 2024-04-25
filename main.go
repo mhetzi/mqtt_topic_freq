@@ -32,6 +32,19 @@ var store_to_zn_total = make(map[string]uint32, 100)
 var chartTo *ChartDataHolder = nil
 var chartFrom *ChartDataHolder = nil
 
+func initChartData() {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	chartTo = new(ChartDataHolder)
+	chartTo.timedData = make(map[time.Time]ChartTimeData, 10)
+	chartTo.topics.array = make(map[string]bool, 10)
+
+	chartFrom = new(ChartDataHolder)
+	chartFrom.timedData = make(map[time.Time]ChartTimeData, 10)
+	chartFrom.topics.array = make(map[string]bool, 10)
+}
+
 func main() {
 	args, err := checkCmdArgs()
 	if err != nil {
@@ -136,14 +149,21 @@ func main() {
 		panic(err)
 	}
 
-	if args.graph {
-		chartTo = new(ChartDataHolder)
-		chartTo.timedData = make(map[time.Time]ChartTimeData, 10)
-		chartTo.topics.array = make(map[string]bool, 10)
-
-		chartFrom = new(ChartDataHolder)
-		chartFrom.timedData = make(map[time.Time]ChartTimeData, 10)
-		chartFrom.topics.array = make(map[string]bool, 10)
+	if args.graph != 0 {
+		initChartData()
+		if args.graph > 0 {
+			go writeGraphTimed(args.graph)
+		}
+		fmt.Println("Graph gneration enabled, you can send SIGUSR1 to process to write graph and beginn new session")
+		usr1 := make(chan os.Signal, 1)
+		signal.Notify(usr1, syscall.SIGUSR1)
+		go func() {
+			su := <-usr1
+			fmt.Printf("[GOT: %s] OK, gen graph & reset...\n", su.String())
+			writeGraph()
+			initChartData()
+			fmt.Println("Done")
+		}()
 	}
 
 	if args.repr {
@@ -154,7 +174,7 @@ func main() {
 	go resetStats(args.resetEveryMinutes, args.repr)
 
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGUSR1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	done := make(chan bool, 1)
 	go func() {
 		sig := <-sigs
@@ -176,6 +196,7 @@ func main() {
 	fmt.Println("Writing charts...")
 	doPushChart()
 	writeGraph()
+	fmt.Println("Bye!")
 }
 
 func resetStats(everyMinutes int, repr bool) {
@@ -195,12 +216,12 @@ func resetStats(everyMinutes int, repr bool) {
 }
 
 func doPushChart() {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if chartFrom == nil || chartTo == nil {
 		return
 	}
-
-	mutex.Lock()
-	defer mutex.Unlock()
 
 	chartTo.ChartPushData(store_to_zn)
 	chartFrom.ChartPushData(store_from_zn)
@@ -316,6 +337,14 @@ func writeToFile_To(total bool) {
 	_, err = f.Write(b)
 	if err != nil {
 		fmt.Println(err)
+	}
+}
+
+func writeGraphTimed(everyMinutes int) {
+	for range time.Tick(time.Minute * time.Duration(everyMinutes)) {
+		fmt.Println("Writing charts...")
+		writeGraph()
+		initChartData()
 	}
 }
 
