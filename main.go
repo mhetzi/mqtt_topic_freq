@@ -158,11 +158,13 @@ func main() {
 		usr1 := make(chan os.Signal, 1)
 		signal.Notify(usr1, syscall.SIGUSR1)
 		go func() {
-			su := <-usr1
-			fmt.Printf("[GOT: %s] OK, gen graph & reset...\n", su.String())
-			writeGraph()
-			initChartData()
-			fmt.Println("Done")
+			for {
+				su := <-usr1
+				fmt.Printf("[GOT: %s] OK, gen graph & reset...\n", su.String())
+				writeGraph()
+				initChartData()
+				fmt.Println("Done")
+			}
 		}()
 	}
 
