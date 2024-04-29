@@ -20,6 +20,7 @@ type ParsedArgs struct {
 	username          string
 	password          string
 	mqttUrl           string
+	settings          string
 
 	topic  string
 	topic2 string
@@ -33,9 +34,10 @@ func checkCmdArgs() (ParsedArgs, error) {
 		printEverySeconds: 60,
 		username:          "",
 		password:          "",
-		mqttUrl:           "mqtt://localhost:1883",
-		topic:             "/test/#",
-		topic2:            "/test2/+",
+		mqttUrl:           "",
+		topic:             "",
+		topic2:            "",
+		settings:          "",
 	}
 
 	cmdArgs := os.Args[1:]
@@ -59,6 +61,7 @@ func checkCmdArgs() (ParsedArgs, error) {
 				fmt.Println("--repr Do print and reset immidiatly")
 				fmt.Println("--graph Generate graphs,  datapoints are collected on reset or an SIGUSR1")
 				fmt.Println("--grm Render graph every x Minutes")
+				fmt.Println("--config PATH Use custom config Path")
 				fmt.Println(" ==== END =====")
 				return retArgs, &ArgsToExit{msg: "help"}
 			}
@@ -114,6 +117,8 @@ func checkCmdArgs() (ParsedArgs, error) {
 				fmt.Println("--grm argument is invalid")
 				fmt.Println(e)
 			}
+		case "--config":
+			retArgs.settings = cmdArgs[cmdOffset+1]
 		}
 
 	}

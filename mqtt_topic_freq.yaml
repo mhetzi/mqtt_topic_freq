@@ -1,0 +1,20 @@
+topics:
+  - friendly_name: From Zigbee Network
+    topic: zigbee2mqtt_g/+
+    save_chart: "0 0 0 * * *"
+    save_json: "0 */1 * * * *"
+    reset_data: "1 */1 * * * *"
+    exclude_topics: 
+      - zigbee2mqtt_g/bridge
+      - zigbee2mqtt_g/bridge/logging
+  - friendly_name: To Zigbee Network
+    topic: "zigbee2mqtt_g/+/set"
+    save_chart: "0 0 0 * * *"
+    save_json: "0 */1 * * * *"
+    reset_data: "1 */1 * * * *"
+
+
+client_id: "mqtt_topic_analyzer_debug"
+url: "mqtt://localhost:1883"
+user: user
+password: "passwd"

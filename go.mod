@@ -7,6 +7,8 @@ require (
 	github.com/go-echarts/go-echarts/v2 v2.3.3
 )
 
+require gopkg.in/yaml.v3 v3.0.1 // indirect
+
 require (
 	github.com/eclipse/paho.golang v0.21.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
