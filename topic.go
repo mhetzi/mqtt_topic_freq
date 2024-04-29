@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"sort"
 	"strings"
@@ -76,16 +77,27 @@ func (d *TopicProc) _getKeysSortedByValue() []string {
 	return keys
 }
 
+func (d *TopicProc) _getSortedByValue() topicMap {
+	sk := d._getKeysSortedByValue()
+	nm := make(topicMap, len(d.topicStore))
+	for _, key := range sk {
+		nm[key] = d.topicStore[key]
+	}
+	return nm
+}
+
 func (d *TopicProc) writeStatsConsole() {
 	d._mutex.Lock()
 	defer d._mutex.Unlock()
 	keys := d._getKeysSortedByValue()
 
-	log.Printf("========= BEGINN %s ========\n", d.friendlyName)
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("========= BEGINN %s ========\n", d.friendlyName))
 	for _, k := range keys {
-		log.Printf("%3d: %s\n", d.topicStore[k], k)
+		sb.WriteString(fmt.Sprintf("%3d: %s\n", d.topicStore[k], k))
 	}
-	log.Println("========= END ========")
+	sb.WriteString(fmt.Sprintln("========= END ========"))
+	d._log.Print(sb.String())
 }
 
 func (d *TopicProc) writeToJsonFile(total bool) error {
@@ -133,7 +145,7 @@ func (d *TopicProc) ResetStats() {
 	d._mutex.Lock()
 	defer d._mutex.Unlock()
 
-	d.chart.ChartPushData(d.topicStore)
+	d.chart.ChartPushData(d._getSortedByValue())
 	d.topicStore = make(topicMap, len(d.topicStore))
 
 }
@@ -146,6 +158,7 @@ func NewTopicProc(setting SettingsTopicEntry, sched gocron.Scheduler, log *log.L
 	}
 
 	d := new(TopicProc)
+	d._log = log
 	d._InitTopicProc()
 	d.baseTopic = setting.Topic
 	d.friendlyName = name
