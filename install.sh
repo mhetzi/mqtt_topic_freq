@@ -2,9 +2,10 @@
 
 sudo dnf install golang
 
-cd src
+cd src/mqtt_topic_frequenzy_counter/
+go get
 go build .
 sudo cp mqtt_topic_frequenzy_counter /usr/local/bin/ -v
-cd ..
+cd ../..
 sudo cp ./systemd/mqtt_topic_frequenzy_counter.service /etc/systemd/user/
 sudo systemctl enable mqtt_topic_frequenzy_counter.service
