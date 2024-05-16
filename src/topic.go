@@ -27,6 +27,7 @@ type TopicProc struct {
 	topicStoreTotal topicMap
 	chart           ChartDataHolder
 	subID           int
+	fman            *fileman
 }
 
 func (d *TopicProc) process(topic string) bool {
@@ -59,7 +60,7 @@ func (d *TopicProc) writeGraph() error {
 	d._mutex.Lock()
 	defer d._mutex.Unlock()
 
-	ff, err := getFileWithTimestamp("graph", d.friendlyName, "html")
+	ff, err := d.fman.getFileWithTimestamp("graph", d.friendlyName, "html")
 	if err != nil {
 		return err
 	}
@@ -106,7 +107,7 @@ func (d *TopicProc) writeToJsonFile(total bool) error {
 		tot = "total"
 	}
 
-	f, err := getFileWithTimestamp(d.friendlyName, tot, "json")
+	f, err := d.fman.getFileWithTimestamp(d.friendlyName, tot, "json")
 	if err != nil {
 		return err
 	}
@@ -138,6 +139,8 @@ func (d *TopicProc) _InitTopicProc() {
 		},
 	}
 	d.friendlyName = ""
+	d.fman = new(fileman)
+	d.fman.working_directory = ""
 }
 
 /* Important for Charting, pushes data to chart & resets */

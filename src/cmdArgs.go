@@ -21,6 +21,7 @@ type ParsedArgs struct {
 	password          string
 	mqttUrl           string
 	settings          string
+	path              string
 
 	topic  string
 	topic2 string
@@ -38,6 +39,7 @@ func checkCmdArgs() (ParsedArgs, error) {
 		topic:             "",
 		topic2:            "",
 		settings:          "",
+		path:              "",
 	}
 
 	cmdArgs := os.Args[1:]
@@ -62,6 +64,7 @@ func checkCmdArgs() (ParsedArgs, error) {
 				fmt.Println("--graph Generate graphs,  datapoints are collected on reset or an SIGUSR1")
 				fmt.Println("--grm Render graph every x Minutes")
 				fmt.Println("--config PATH Use custom config Path")
+				fmt.Println("--cwd Change Path, where the chart and stat files are getting stored.")
 				fmt.Println(" ==== END =====")
 				return retArgs, &ArgsToExit{msg: "help"}
 			}
@@ -119,6 +122,8 @@ func checkCmdArgs() (ParsedArgs, error) {
 			}
 		case "--config":
 			retArgs.settings = cmdArgs[cmdOffset+1]
+		case "--cwd":
+			retArgs.path = cmdArgs[cmdOffset+1]
 		}
 
 	}

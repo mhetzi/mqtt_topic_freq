@@ -33,6 +33,7 @@ type SettingsStruct struct {
 	User     string               `yaml:"user"`
 	Passwd   string               `yaml:"password"`
 	ClientID string               `yaml:"client_id"`
+	Path     string               `yaml:"path"`
 }
 
 func loadSettings(path string, debug bool, log *log.Logger) (*SettingsStruct, error) {
@@ -96,4 +97,9 @@ func getBetterString(s1 string, s2 string) (string, error) {
 		return s2, nil
 	}
 	return "", new(EmptyString)
+}
+
+func getBetterStringNoErr(s1 string, s2 string) string {
+	s, _ := getBetterString(s1, s2)
+	return s
 }

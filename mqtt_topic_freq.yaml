@@ -18,3 +18,4 @@ client_id: "mqtt_topic_analyzer_debug"
 url: "mqtt://localhost:1883"
 user: user
 password: "passwd"
+path: "/mnt/dataArray/daten/zigbee_freq_log/"

@@ -181,6 +181,10 @@ func main() {
 		WarningLogger.Println(err)
 	}
 
+	fman := fileman{
+		working_directory: getBetterStringNoErr(args.path, settings.Path),
+	}
+
 	for idx, entry := range settings.Topics {
 		tp, err := NewTopicProc(entry, scheduler, InfoLogger)
 		if err != nil {
@@ -189,6 +193,7 @@ func main() {
 		}
 
 		tp.subID = idx + 1
+		tp.fman = &fman
 		topicProcs = append(topicProcs, tp)
 	}
 

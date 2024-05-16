@@ -1,0 +1,13 @@
+[Unit]
+Description=Count Pushes to defined MQTT Topics
+
+After=mosquitto.service
+Requires=mosquitto.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/mqtt_topic_frequenzy_counter
+RemainAfterExit=no
+
+[Install]
+WantedBy=default.target
